@@ -1,7 +1,7 @@
 import './style.css'
 import { pipeline, env } from '@huggingface/transformers'
 
-// Minimal UI
+// 简易界面
 const app = document.querySelector('#app')
 app.innerHTML = `
   <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
@@ -15,26 +15,27 @@ const $subs = document.getElementById('subs')
 
 ;(async () => {
   try {
-    // 1) Prefer WebGPU if available
+    // 1) 如支持，优先启用 WebGPU
     const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator
     try {
       if (env && env.backends && env.backends.onnx) {
+        // 配置 ONNX 运行时：线程数与设备偏好
         env.backends.onnx.wasm = env.backends.onnx.wasm || {}
         env.backends.onnx.numThreads = env.backends.onnx.numThreads || navigator?.hardwareConcurrency || 4
         env.backends.onnx.devicePreference = hasWebGPU ? 'webgpu' : 'wasm'
       }
     } catch (e) {
-      console.warn('Failed to configure env for WebGPU, will fallback automatically.', e)
+      console.warn('配置 WebGPU 偏好失败，将自动回退到可用后端。', e)
     }
 
-    // 2) Immediately request screen + audio (triggers permission prompt on load)
+    // 2) 页面打开立刻请求屏幕 + 音频权限（会弹出权限提示）
     $status.textContent = '请求屏幕与系统音频权限…'
     const streamPromise = navigator.mediaDevices.getDisplayMedia({
       video: true,
       audio: {
         echoCancellation: false,
         noiseSuppression: false,
-        // Non-standard (Chromium); ignored if unsupported
+        // Chromium 的非标准约束，若不支持会被忽略
         // @ts-ignore
         systemAudio: 'include',
         // @ts-ignore
@@ -42,7 +43,7 @@ const $subs = document.getElementById('subs')
       }
     })
 
-    // 3) Start loading ASR pipeline in parallel
+    // 3) 同时开始加载 ASR 管线（并行）
     $status.textContent = '加载模型中（Xenova/whisper-tiny.en）…首次加载较慢，请稍候'
     const asrPromise = pipeline(
       'automatic-speech-recognition',
@@ -52,7 +53,7 @@ const $subs = document.getElementById('subs')
       }
     )
 
-    // Wait for both stream and model
+    // 等待媒体流与模型都就绪
     const [stream, asr] = await Promise.all([streamPromise, asrPromise])
 
     if (!stream.getAudioTracks || stream.getAudioTracks().length === 0) {
@@ -61,12 +62,12 @@ const $subs = document.getElementById('subs')
       $status.textContent = hasWebGPU ? '已获取音频流，使用 WebGPU 识别…' : '已获取音频流，使用 WASM 识别…'
     }
 
-    // 4) WebAudio capture and buffer
+    // 4) 使用 WebAudio 捕获音频并维护缓冲
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
     const src = audioCtx.createMediaStreamSource(stream)
     const processor = audioCtx.createScriptProcessor(4096, 1, 1)
 
-    // Avoid echo: route into silent gain
+    // 为避免回声，不直接输出到扬声器，而是接入静音增益节点
     const silentGain = audioCtx.createGain()
     silentGain.gain.value = 0
 
@@ -74,20 +75,20 @@ const $subs = document.getElementById('subs')
     processor.connect(silentGain)
     silentGain.connect(audioCtx.destination)
 
-    const inSampleRate = audioCtx.sampleRate // often 48000
+    const inSampleRate = audioCtx.sampleRate // 常见为 48000Hz
 
-    // Sliding window config
+    // 滑动窗口配置：3 秒窗口，1.5 秒步长
     const WINDOW_SEC = 3.0
     const HOP_SEC = 1.5
     const windowSamples = Math.floor(WINDOW_SEC * inSampleRate)
-    const maxKeepSeconds = 12
+    const maxKeepSeconds = 12 // 额外多留些缓冲，避免抖动
     const maxKeepSamples = Math.floor(maxKeepSeconds * inSampleRate)
 
     let pcmBuffer = new Float32Array(0)
     let running = true
     let inferInProgress = false
 
-    // Capture callback
+    // 采集回调：将每帧 PCM 追加到环形缓冲
     processor.onaudioprocess = (e) => {
       const ch0 = e.inputBuffer.getChannelData(0)
       const merged = new Float32Array(pcmBuffer.length + ch0.length)
@@ -99,7 +100,7 @@ const $subs = document.getElementById('subs')
       }
     }
 
-    // Linear resample to 16k (Whisper expected)
+    // 线性重采样到 16k（Whisper 期望采样率）
     function linearResample(input, inRate, outRate) {
       if (inRate === outRate) return input.slice(0)
       const ratio = outRate / inRate
@@ -115,7 +116,7 @@ const $subs = document.getElementById('subs')
       return out
     }
 
-    // Periodic inference with sliding 3s window, 1.5s hop
+    // 定时执行推理：每 1.5 秒取最近 3 秒进行识别
     const hopMs = Math.floor(HOP_SEC * 1000)
     let lastPrinted = ''
 
@@ -145,14 +146,14 @@ const $subs = document.getElementById('subs')
 
         $status.textContent = hasWebGPU ? '识别中（WebGPU）' : '识别中（WASM）'
       } catch (err) {
-        console.error('ASR error:', err)
+        console.error('识别出错：', err)
         $status.textContent = `识别出错：${err?.message || err}`
       } finally {
         inferInProgress = false
       }
     }, hopMs)
 
-    // Clean-up
+    // 资源清理（页面关闭或刷新时）
     const cleanup = () => {
       running = false
       clearInterval(inferTimer)
