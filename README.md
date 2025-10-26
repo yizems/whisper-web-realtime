@@ -9,9 +9,7 @@ The application is built using pure HTML, CSS, and JavaScript, making it easy to
 
 ![img.png](./doc/img.png)
 
-## demo video
-<video src="./doc/demo.mp4" controls width="600"></video>
-
+[demo video](./doc/demo.mp4)
 
 ## Notes:
 
