@@ -87,9 +87,9 @@ function scrollToBottom(el) {
 
     const inSampleRate = audioCtx.sampleRate // 常见为 48000Hz
 
-    // 滑动窗口配置：3 秒窗口，1.5 秒步长
-    const WINDOW_SEC = 3.0
-    const HOP_SEC = 1.5
+    // 滑动窗口配置：2 秒窗口，1 秒步长
+    const WINDOW_SEC = 2
+    const HOP_SEC = 1
     const windowSamples = Math.floor(WINDOW_SEC * inSampleRate)
     const maxKeepSeconds = 12 // 额外多留些缓冲，避免抖动
     const maxKeepSamples = Math.floor(maxKeepSeconds * inSampleRate)
