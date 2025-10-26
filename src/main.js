@@ -7,11 +7,20 @@ app.innerHTML = `
   <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
     <h2 style="margin:0;">Whisper (tiny.en) 屏幕音频转字幕</h2>
     <div id="status" style="opacity:.8;">初始化…</div>
-    <div id="subs" style="width:100%; max-width:960px; min-height:120px; border:1px solid #555; padding:12px; border-radius:8px; text-align:left; overflow:auto; background:rgba(0,0,0,.15);"></div>
+    <div id="subs" style="width:100%; max-width:960px; height:75vh; border:1px solid #555; padding:12px; border-radius:8px; text-align:left; overflow-y:auto; background:rgba(0,0,0,.15); scroll-behavior:smooth; word-break:break-word; overflow-wrap:anywhere;"></div>
   </div>
 `
 const $status = document.getElementById('status')
 const $subs = document.getElementById('subs')
+
+// 将字幕容器滚动到底部（考虑浏览器布局延迟）
+function scrollToBottom(el) {
+  try { el.scrollTop = el.scrollHeight } catch {}
+  // 下一帧再滚动一次，确保布局完成
+  requestAnimationFrame(() => {
+    try { el.scrollTop = el.scrollHeight } catch {}
+  })
+}
 
 ;(async () => {
   try {
@@ -42,12 +51,13 @@ const $subs = document.getElementById('subs')
         suppressLocalAudioPlayback: false,
       }
     })
-
+    // const model = 'Xenova/whisper-tiny.en'
+    const model = 'Xenova/whisper-base.en'
     // 3) 同时开始加载 ASR 管线（并行）
-    $status.textContent = '加载模型中（Xenova/whisper-tiny.en）…首次加载较慢，请稍候'
+    $status.textContent = `加载模型中（${model}）…首次加载较慢，请稍候`
     const asrPromise = pipeline(
       'automatic-speech-recognition',
-      'Xenova/whisper-tiny.en',
+      model,
       {
         device: hasWebGPU ? 'webgpu' : 'wasm',
       }
@@ -140,7 +150,7 @@ const $subs = document.getElementById('subs')
           line.className = 'subtitle'
           line.textContent = text
           $subs.appendChild(line)
-          $subs.scrollTop = $subs.scrollHeight
+          scrollToBottom($subs)
           lastPrinted = text
         }
 
