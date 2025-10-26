@@ -18,8 +18,13 @@ The application is built using pure HTML, CSS, and JavaScript, making it easy to
 - it is not totally accurate. 
 - it is just a tools that demonstrate how to use whisper model in web browser.
 - but it is enough for me to get more understanding in meeting.
+- you can introduce this project to your electron application. 
+```javascript
+app.commandLine.appendSwitch('enable-usermedia-screen-capturing');
+app.commandLine.appendSwitch('auto-select-desktop-capture-source', 'Electron');
+```
 
-## solutions
+## other solutions
 
 this one is the simplest solution I can think of to achieve the goal of transcribing audio using Whisper model in web browser.
 

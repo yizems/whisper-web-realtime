@@ -1,5 +1,5 @@
 {
-  "name": "whisper-web-pure",
+  "name": "whisper-web-realtime",
   "private": true,
   "version": "0.0.0",
   "type": "module",
